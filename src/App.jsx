@@ -1,58 +1,33 @@
-// --- frontend/src/App.jsx ---
 import React, { useState, useEffect } from 'react';
 import SensorSlider from './components/SensorSlider';
+import RICE_STAGES from './stages/RiceStages';
+import SUGARCANE_STAGES from './stages/SugarcaneStages';
 
-const STAGES = {
-  Germination: {
-    image: '/plant_germination.png',
-    IDEAL: {
-      temperature: { L: 28, U: 32, tol_low: 3, tol_high: 3 },
-      soil_moisture: { L: 65, U: 85, tol_low: 20, tol_high: 15 },
-      ph: { L: 6, U: 7, tol_low: 1, tol_high: 1 },
-      humidity: { L: 65, U: 90, tol_low: 15, tol_high: 10 },
-      light: { L: 20000, U: 30000, tol_low: 5000, tol_high: 5000 },
-    },
-  },
-  Tillering: {
-    image: '/plant_tillering.png',
-    IDEAL: {
-      temperature: { L: 26, U: 32, tol_low: 4, tol_high: 4 },
-      soil_moisture: { L: 60, U: 80, tol_low: 30, tol_high: 20 },
-      ph: { L: 6, U: 7, tol_low: 1, tol_high: 1 },
-      humidity: { L: 60, U: 85, tol_low: 20, tol_high: 15 },
-      light: { L: 20000, U: 40000, tol_low: 10000, tol_high: 20000 },
-    },
-  },
-  "Grand Growth": {
-    image: '/plant_grand.png',
-    IDEAL: {
-      temperature: { L: 25, U: 32, tol_low: 4, tol_high: 4 },
-      soil_moisture: { L: 60, U: 85, tol_low: 25, tol_high: 20 },
-      ph: { L: 6, U: 7, tol_low: 1, tol_high: 1 },
-      humidity: { L: 55, U: 80, tol_low: 20, tol_high: 15 },
-      light: { L: 25000, U: 45000, tol_low: 10000, tol_high: 20000 },
-    },
-  },
-  Maturation: {
-    image: '/plant_maturity.png',
-    IDEAL: {
-      temperature: { L: 24, U: 30, tol_low: 4, tol_high: 4 },
-      soil_moisture: { L: 55, U: 75, tol_low: 25, tol_high: 20 },
-      ph: { L: 6, U: 7, tol_low: 1, tol_high: 1 },
-      humidity: { L: 50, U: 75, tol_low: 20, tol_high: 15 },
-      light: { L: 20000, U: 40000, tol_low: 10000, tol_high: 20000 },
-    },
-  },
+const CROPS = {
+  Rice: RICE_STAGES,
+  Sugarcane: SUGARCANE_STAGES,
 };
 
 const WEIGHTS = { soil_moisture: 0.35, temperature: 0.2, ph: 0.15, humidity: 0.1, light: 0.1 };
-const PENALTY_PARAMS = { soil_moisture: { alpha: 0.6, gamma: 1.8 }, temperature: { alpha: 0.35, gamma: 1.5 }, ph: { alpha: 0.2, gamma: 1.0 }, humidity: { alpha: 0.15, gamma: 1.0 }, light: { alpha: 0.15, gamma: 1.0 } };
-const ACTIONS = { temperature: "Adjust shade or irrigation", soil_moisture: "Irrigate or improve drainage", ph: "Add lime or gypsum", humidity: "Adjust irrigation or airflow", light: "Remove shading or add shade nets" };
-
+const PENALTY_PARAMS = {
+  soil_moisture: { alpha: 0.6, gamma: 1.8 },
+  temperature: { alpha: 0.35, gamma: 1.5 },
+  ph: { alpha: 0.2, gamma: 1.0 },
+  humidity: { alpha: 0.15, gamma: 1.0 },
+  light: { alpha: 0.15, gamma: 1.0 }
+};
+const ACTIONS = {
+  temperature: "Adjust shade or irrigation",
+  soil_moisture: "Irrigate or improve drainage",
+  ph: "Add lime or gypsum",
+  humidity: "Adjust irrigation or airflow",
+  light: "Remove shading or add shade nets"
+};
 const DEFAULT_YMAX = 100;
 
 export default function App() {
-  const [stage, setStage] = useState("Tillering");
+  const [crop, setCrop] = useState("Rice");
+  const [stage, setStage] = useState("Germination");
   const [temperature, setTemperature] = useState(30);
   const [soilMoisture, setSoilMoisture] = useState(70);
   const [ph, setPh] = useState(6.5);
@@ -60,6 +35,8 @@ export default function App() {
   const [light, setLight] = useState(28000);
   const [Ymax, setYmax] = useState(DEFAULT_YMAX);
   const [result, setResult] = useState(null);
+
+  const STAGES = CROPS[crop];
 
   const paramScore = (x, L, U, tolLow, tolHigh) => {
     if (x >= L && x <= U) return 1;
@@ -112,18 +89,24 @@ export default function App() {
     setResult({ confidence_pct, expected_yield, Ymax, note, status });
   };
 
-  useEffect(()=>compute(), [temperature, soilMoisture, ph, humidity, light, stage, Ymax]);
+  useEffect(()=>compute(), [temperature, soilMoisture, ph, humidity, light, stage, crop, Ymax]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-5xl mx-auto bg-white shadow-lg rounded-lg p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-lg p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        {/* Crop + Stage Selector */}
         <div className="col-span-1 flex flex-col items-center max-w-[220px] mx-auto">
+          <select value={crop} onChange={e=>{setCrop(e.target.value); setStage(Object.keys(CROPS[e.target.value])[0]);}} className="mb-4 p-2 border rounded w-full">
+            {Object.keys(CROPS).map(c=><option key={c} value={c}>{c}</option>)}
+          </select>
           <img src={STAGES[stage].image} alt={stage} className="w-full h-auto object-contain rounded-lg shadow-md mb-4" />
           <select value={stage} onChange={e=>setStage(e.target.value)} className="mt-2 p-2 border rounded w-full">
             {Object.keys(STAGES).map(s=><option key={s} value={s}>{s}</option>)}
           </select>
         </div>
 
+        {/* Sliders */}
         <div className="col-span-1 md:col-span-1">
           <h2 className="text-lg font-bold mb-4">Adjust sensors / stage</h2>
           <SensorSlider label="Temperature (°C)" min={15} max={40} value={temperature} onChange={setTemperature}/>
@@ -137,6 +120,7 @@ export default function App() {
           </div>
         </div>
 
+        {/* Estimate */}
         <div className="col-span-1 md:col-span-1">
           <h2 className="text-lg font-bold mb-4">Estimate</h2>
           {result ? (
